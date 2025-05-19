@@ -1,0 +1,81 @@
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import java.util.Scanner;
+
+public class CurrencyConverter {
+
+    private static final String API_KEY = "SUA_CHAVE_DE_API"; // Substitua pela sua chave
+    private static final String API_URL = "https://api.exchangerate-api.com/v4/latest/";
+
+    public static void main(String[] args) {
+        Scanner scanner = new Scanner(System.in);
+
+        System.out.print("Digite a moeda de origem (ex: USD): ");
+        String fromCurrency = scanner.nextLine().toUpperCase();
+
+        System.out.print("Digite a moeda de destino (ex: BRL): ");
+        String toCurrency = scanner.nextLine().toUpperCase();
+
+        System.out.print("Digite o valor a ser convertido: ");
+        double amount;
+        try {
+            amount = scanner.nextDouble();
+        } catch (java.util.InputMismatchException e) {
+            System.out.println("Valor inválido. Por favor, digite um número.");
+            scanner.close();
+            return;
+        }
+
+        double rate = getExchangeRate(fromCurrency, toCurrency);
+
+        if (rate > 0) {
+            double convertedAmount = amount * rate;
+            System.out.println(amount + " " + fromCurrency + " equivalem a " + String.format("%.2f", convertedAmount) + " " + toCurrency);
+        } else {
+            System.out.println("Não foi possível obter a taxa de câmbio.");
+        }
+
+        scanner.close();
+    }
+
+    private static double getExchangeRate(String fromCurrency, String toCurrency) {
+        try {
+            URL url = new URL(API_URL + fromCurrency);
+            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+            connection.setRequestMethod("GET");
+
+            int responseCode = connection.getResponseCode();
+            if (responseCode == HttpURLConnection.HTTP_OK) {
+                BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+                String line;
+                StringBuilder response = new StringBuilder();
+                while ((line = reader.readLine()) != null) {
+                    response.append(line);
+                }
+                reader.close();
+
+                JsonObject jsonResponse = JsonParser.parseString(response.toString()).getAsJsonObject();
+                JsonObject rates = jsonResponse.getAsJsonObject("rates");
+                if (rates.has(toCurrency)) {
+                    return rates.get(toCurrency).getAsDouble();
+                } else {
+                    System.out.println("Moeda de destino não encontrada.");
+                    return 0.0;
+                }
+
+            } else {
+                System.out.println("Erro na requisição à API: " + responseCode);
+                return 0.0;
+            }
+
+        } catch (IOException e) {
+            System.out.println("Erro ao acessar a API: " + e.getMessage());
+            return 0.0;
+        }
+    }
+}
